@@ -2,9 +2,9 @@ version: '3.8'
 services:
   mongo-standalone:
     image: mongo:latest
-    container_name: mongo-standalone
+    container_name: mongo-standalone 
     ports:
-      - "27017:27017"
+      - "27017:27017" # port du service
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: secret
