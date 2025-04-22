@@ -212,7 +212,7 @@ Partie 3 - Intégration dans une application
 		
 Commentaires libres : 
 
-La mise en place du projet, surtout au début était plutôt simple et amusante. 
-Les problèmes sérieux sont arrivés lors de la partie 3 à l'intégration de l'application.
-Il était facile de se perdre sur les différents chemins et la configuration des fichiers. 
-La partie bonus n'a pas été faite, manque de temps. 
+	La mise en place du projet, surtout au début était plutôt simple et amusante. 
+	Les problèmes sérieux sont arrivés lors de la partie 3 à l'intégration de l'application.
+	Il était facile de se perdre sur les différents chemins et la configuration des fichiers. 
+	La partie bonus n'a pas été faite, manque de temps. 
