@@ -1,0 +1,270 @@
+**********************************************************
+Partie 1 - Installation de Redis
+**********************************************************
+
+1. Mise à jour du système : 
+sudo apt install redis-server -y
+
+2. Installation de redis :
+sudo apt install redis-server -y
+
+3. Verification du service :
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+
+4. Verification qu'il tounre :
+sudo systemctl status redis-server
+● redis-server.service - Advanced key-value store
+     Loaded: loaded (/usr/lib/systemd/system/redis-server.service; enabled; preset: disabled)
+     Active: active (running) since Fri 2025-05-16 11:47:37 CEST; 11s ago
+ Invocation: be9a12d9899a4298be68afa4ec2eb5cf
+       Docs: http://redis.io/documentation,
+             man:redis-server(1)
+   Main PID: 12831 (redis-server)
+     Status: "Ready to accept connections"
+      Tasks: 5 (limit: 18288)
+     Memory: 9.4M (peak: 10M)
+        CPU: 150ms
+     CGroup: /system.slice/redis-server.service
+             └─12831 "/usr/bin/redis-server 127.0.0.1:6379"
+
+Renvoie active (running) donc il tourne bien ! 
+
+5. Test en local :
+redis-cli ping
+-> renvoie PONG
+
+6. On ajoute en plus l'autorisation de  l'accès à distance.
+Par défaut, Redis n’écoute que l’interface loopback (127.0.0.1). Pour le rendre accessible depuis d’autres machines:
+On ouvre le fichier de conf : 
+sudo nano /etc/redis/redis.conf
+
+On ajoute a coté de la ligne : bind 127.0.0.1 ::1
+la ligne : bind 0.0.0.0
+
+7. Désactive le mode protégé (car réseau de confiance) :
+protected-mode no
+
+8. Définit un mot de passe pour plus de sécurité :
+requirepass Test1234
+
+9. Redémarre Redis pour prendre en compte les changements :
+sudo systemctl restart redis-server
+
+**********************************************************
+Partie 2 – Mise en place d’une réplication Master/Slave
+**********************************************************
+
+1. On prépare un second fichier de configuration
+
+Nous allons lancer deux instances Redis :
+ Master sur le port 6379 (déjà en place), et Slave sur le port 6380.
+
+Copie le fichier de conf existant et on  modifie pour le nœud esclave :
+sudo cp /etc/redis/redis.conf /etc/redis/redis-slave.conf
+
+2. Ouvre /etc/redis/redis-slave.conf et ajuste :
+# Port du Slave
+port 6380
+
+# Répertoire de données (éviter d’écraser le master)
+dir /var/lib/redis-slave
+
+# Fichier de log (distinct)
+logfile /var/log/redis/redis-slave.log
+
+3. Crée le dossier de données et ajuste les permissions :
+sudo mkdir /var/lib/redis-slave
+sudo chown redis:redis /var/lib/redis-slave
+
+4. Configure le Slave pour répliquer le Master
+Toujours dans /etc/redis/redis-slave.conf, ajoutez à la fin :
+# Adresse et port du master
+replicaof 127.0.0.1 6379
+
+# Mot de passe sur le master :
+replica-announce-pass Test1234
+masterauth Test1234
+
+5. Lance l’instance Slave
+Démarre Redis avec votre nouveau fichier :
+sudo redis-server /etc/redis/redis-slave.conf
+
+6. Vérifie qu’elle tourne :
+ps aux | grep redis
+-> Revoie les deux processus Redis (6379 et 6380).
+
+7. Vérifie la réplication
+Connection au Master (port 6379) et on défini une clé :
+redis-cli -p 6379
+> set ma_cle "hello"
+OK
+> exit
+
+8. Connection au Slave (port 6380) et lecture de la clé :
+redis-cli -p 6380
+> get ma_cle
+"hello"
+-> renvoie bien "hello", la réplication fonctionne !
+
+9. On peut aussi, côté Slave, vérifier son état :
+redis-cli -p 6380 info replication
+On voit : 
+role:slave
+master_host:127.0.0.1
+master_port:6379
+master_link_status:up
+Partie 3 – Intégration dans une application web
+
+**********************************************************
+Partie 3 – Intégration dans une application web
+**********************************************************
+
+1. Préparer l’environnement Python
+Si pas installé :
+sudo apt install python3 python3-venv python3-pip -y
+
+2. Crée et active un environnement virtuel dans votre projet RedisCacheApp :
+mkdir RedisCacheApp
+cd RedisCacheApp
+python3 -m venv venv
+source venv/bin/activate
+
+3. Crée un fichier requirements.txt avec les dépendances :
+Flask>=2.0
+redis>=4.0
+
+Et on les installe :
+pip install -r requirements.txt
+
+4. Écrire l’application Flask avec cache‑aside
+Dans RedisCacheApp/, on crée app.py (voir le fichier dans le code).
+
+5. Test de l'application 
+Lance d’abord Redis (Master ou Slave ; de toute façon les deux contiennent les données répliquées) :
+sudo systemctl start redis-server
+
+6. Lance notre app dans l’environnement virtuel :
+source venv/bin/activate
+python app.py
+
+7. Dans un autre terminal, on teste avec curl :
+# Première requête (simulateur lent)
+time curl http://127.0.0.1:5000/data/bonjour
+
+On voit ~2 secondes de temps d’exécution et une réponse JSON :
+
+{
+  "key": "bonjour",
+  "value": "BONJOUR",
+  "source": "database (slow)"
+}
+
+# Seconde requête (cache)
+time curl http://127.0.0.1:5000/data/bonjour
+
+On voit en ~0.2s secondes de temps d'exécution et une réponse JSON :
+
+{
+  "key": "bonjour",
+  "value": "BONJOUR",
+  "source": "cache"
+}
+
+**********************************************************
+Partie 4 – Vérification et démonstration
+**********************************************************
+
+1. Benchmark automatique
+On édite benchmark.sh pour qu’il contienne bien la définition de la variable URL. Par exemple :
+
+#!/usr/bin/env bash
+KEY="testkey"
+URL="http://127.0.0.1:5000/data/$KEY"
+
+echo "1) Requête cold cache (≈ 2 s)…"
+time curl -s $URL | jq
+
+echo
+echo "2) Requête warm cache (≈ instant)…"
+time curl -s $URL | jq
+
+2. On le rend exécutable et on le lance :
+chmod +x benchmark.sh
+./benchmark.sh
+
+-> Revoie : 
+1) Requête cold cache (attente 2 s)…
+{
+  "key": "testkey",
+  "source": "database (slow)",
+  "value": "TESTKEY"
+}
+
+real	0m2.022s
+user	0m0.010s
+sys	0m0.018s
+
+2) Requête warm cache (attente quasi nulle)…
+{
+  "key": "testkey",
+  "source": "cache",
+  "value": "TESTKEY"
+}
+
+real	0m0.032s
+user	0m0.015s
+sys	0m0.022s
+
+3. Vérification de l’expiration (TTL)
+On vérifie le TTL de la clé juste après la première requête (chaîne encore en cache) :
+redis-cli TTL testkey
+-> revoie 20 (apres 20 secondes)
+
+4.On attends 60 s (ou un peu plus) pour que la clé expire, puis :
+redis-cli TTL testkey   
+-> retourne  -2 (clé absente)
+redis-cli GET  testkey   
+-> retourne  (nil)
+
+5. On teste la requête HTTP à nouveau pour voir le « cold cache » :
+time curl -s $URL | jq
+
+revoie : 
+
+{
+  "key": "testkey",
+  "source": "database (slow)",
+  "value": "TESTKEY"
+}
+
+real	2.03s
+user	0.02s
+sys	0.01s
+cpu	1%
+
+real	2.03s
+user	0.00s
+sys	0.00s
+cpu	0%
+
+6. Vérification de la réplication Master/Slave
+On exécute clairement chaque commande, sans les enchaîner dans nano :
+
+SET sur le Master (6379) :
+┌──(primx㉿localhost)-[~/RedisCacheApp]
+└─$ redis-cli -p 6379 SET demo 'replicated!'
+OK
+        
+GET sur le Slave (6380) :
+┌──(primx㉿localhost)-[~/RedisCacheApp]
+└─$ redis-cli -p 6380 GET demo
+"replicated!"   
+       
+7. On inspecte l’état du Slave :
+┌──(primx㉿localhost)-[~/RedisCacheApp]
+└─$ redis-cli -p 6380 INFO replication | grep -E 'role|master_link_status'
+role:slave
+master_link_status:up
+
+#LES CAPTURES D'ÉCRANS ONT ÉTÉ AJOUTÉES !
