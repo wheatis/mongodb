@@ -1,9 +1,0 @@
-# Fichiers générés
-mongo/**/data*/
-mongo/**/journal/
-mongo/**/.mongodb/
-mongo/**/WiredTiger
-
-# Environnements
-.env
-node_modules/
