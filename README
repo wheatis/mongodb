@@ -1,0 +1,101 @@
+# 📦 Neo4j-TP – Recommandation de Produits avec Graphe
+
+## 🧠 Contexte
+
+Ce projet a été réalisé dans le cadre d’un TP de bases de données. Il a pour but de modéliser les interactions entre **clients**, **commandes** et **produits** à l’aide d’une base de données orientée graphe avec **Neo4j**, afin de :
+
+- Visualiser les relations entre clients et produits,
+- Effectuer des requêtes complexes,
+- Fournir des recommandations de produits,
+- Et exposer ces données via une **API Flask** simple.
+
+---
+
+## 📁 Structure du projet
+
+neo4j-tp/
+├── data/ # Données Neo4j 
+├── docs/
+│ └── queries.cypher # Requêtes Cypher utilisées
+├── env/ # Environnement virtuel Python
+├── src/
+│ ├── app.py # API Flask exposant les endpoints
+│ └── insert_data.py # Script d’insertion des données
+├── docker-compose.yml # Docker pour lancer Neo4j
+├── requirements.txt # Librairies Python nécessaires
+└── README.md # Documentation du projet
+
+---
+
+## ⚙️ Installation et lancement
+
+### 1. Cloner le projet
+
+```bash
+git clone https://github.com/wheatis/mongodb.git
+cd neo4j-tp
+```
+
+### 2. Lancer Neo4j via Docker
+
+```bash
+docker-compose up -d
+```
+
+- Cela démarre Neo4j sur :
+    Interface Web : http://localhost:7474
+    Bolt URI : bolt://localhost:7687
+- Identifiants par défaut :
+    Utilisateur : neo4j
+    Mot de passe : password
+    
+### 3. Créer l’environnement Python
+
+```bash
+python3 -m venv env
+source env/bin/activate
+pip install -r requirements.txt
+```
+
+### 4. Insérer les données dans Neo4j
+
+```bash
+cd src
+python insert_data.py
+```
+
+- Cela crée automatiquement :
+    3 clients
+    Plusieurs produits
+    3 commandes avec relations
+    
+### 5. Lancer l’API Flask
+```bash
+python app.py
+```
+
+L’API tourne sur : http://127.0.0.1:5000
+
+## 🔌 Endpoints de l’API
+
+| Méthode | URL                                      | Description |
+|---------|------------------------------------------|-------------|
+| GET     | `/produits/<nom_client>`                 | Retourne les produits achetés par un client |
+| GET     | `/clients/<nom_produit>`                 | Retourne les clients ayant acheté un produit |
+| GET     | `/commandes_contenant/<nom_produit>`     | Retourne les commandes contenant un produit |
+| GET     | `/suggestions/<nom_client>`              | Suggère des produits basés sur les clients similaires |
+
+
+Exemples :
+    http://127.0.0.1:5000/produits/Alice
+    http://127.0.0.1:5000/suggestions/Alice
+    
+## 🧾 Requêtes Cypher (docs/queries.cypher)
+
+Le fichier `queries.cypher` contient les requêtes utilisées dans le projet, comme :
+
+```cypher
+// Produits achetés par Alice
+MATCH (c:Client {nom: "Alice"})-[:A_EFFECTUE]->(:Commande)-[:CONTIENT]->(p:Produit)
+RETURN p.nom
+```

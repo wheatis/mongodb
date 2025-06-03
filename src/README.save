@@ -1,0 +1,23 @@
+# Neo4j-TP – Recommandation de produits
+
+## Description
+
+Projet en Python et Neo4j qui modélise une base de données orientée graphe pour :
+- Gérer des clients, produits et commandes
+- Rechercher les produits achetés, les clients associés et faire des suggestions
+
+## Structure
+
+- `src/insert_data.py` : insère les données dans Neo4j
+- `src/app.py` : expose une API Flask pour interroger la base
+- `docs/queries.cypher` : contient les requêtes Cypher utilisées
+- `docker-compose.yml` : lance Neo4j en local
+- `requirements.txt` : dépendances Python
+
+## Lancer le projet
+
+### 1. Lancer Neo4j
+
+```bash
+docker-compose up -d
+
